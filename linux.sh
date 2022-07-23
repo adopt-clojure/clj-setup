@@ -36,10 +36,11 @@ These extra tools are purely optional, but are recommended - particularly if you
 
 yes_or_no() {
     while true; do
-        read -p "$* [y/n]: " yn
+        read -p "$* [Y/n]: " yn
         case $yn in
             [Yy]*) return 0  ;;
-            *) echo "Aborted" ; return  1 ;;
+            [Nn]*) return 1  ;;
+            *) return  0 ;;
         esac
     done
 }
@@ -53,8 +54,7 @@ install_x() {
 ##################################################
 install_debian() {
     install_x "Debian" "apt"
-    echo "Installing with apt..."
-    # sudo apt install -y git clojure visual-studio-code
+    sudo apt install -y git clojure visual-studio-code
 }
 
 install_arch() {
@@ -90,8 +90,7 @@ install_linux() {
 ##################################################
 install_brew() {
     install_x "MacOS" "brew"
-    echo "Installing with brew..."
-    # brew install git openjdk@11 clojure visual-studio-code
+    brew install -q git openjdk@11 clojure visual-studio-code
 }
 
 install_ports() {
@@ -111,25 +110,33 @@ install_macos() {
 ########### Run Installations ####################
 ##################################################
 
-case "$(uname -s)" in
-    Darwin)
-        if type brew; then install_brew
-        elif type ports; then install_ports
-        else install_macos
-        fi
-        ;;
+run_install() {
+    case "$(uname -s)" in
+        Darwin)
+            if type brew; then install_brew
+            elif type ports; then install_ports
+            else install_macos
+            fi
+            ;;
 
-    Linux)
-        if type pacman; then install_arch
-        elif type apt; then install_debian
-        elif type dnf; then install_dnf
-        else install_linux
-        fi
-        ;;
+        Linux)
+            if type pacman; then install_arch
+            elif type apt; then install_debian
+            elif type dnf; then install_dnf
+            else install_linux
+            fi
+            ;;
 
-    *)
-        log "Unrecognized OS type."
-esac
+        *)
+            log "Unrecognized OS type."
+    esac
 
-log "Installing vscode extensions..."
-code --install-extension betterthantomorrow.calva borkdude.clj-kondo
+    log "Installing vscode extensions..."
+    code --install-extension betterthantomorrow.calva borkdude.clj-kondo
+}
+
+if yes_or_no "Would you like to continue?"; then
+    run_install
+else
+    echo "Stopping installation..."
+fi
