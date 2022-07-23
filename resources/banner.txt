@@ -8,6 +8,7 @@ Thank you for using clj-setup to set up your Clojure environment.
 
 This tool will install several components on your system, including:
 
+- Git
 - A Java Virtual Machine
 - The Clojure compiler
 - Visual Studio Code
@@ -18,5 +19,3 @@ Some of these you may already have installed. If that's the case, clj-setup will
 After installing these 4 applications, there will be a handful more optional ones that you'll have the choice of installing along with these.
 
 These extra tools are purely optional, but are recommended - particularly if you're new to Clojure.
-
-Note that this installer does require internet to download the software.
