@@ -132,7 +132,8 @@ run_install() {
     esac
 
     log "Installing vscode extensions..."
-    code --install-extension betterthantomorrow.calva borkdude.clj-kondo
+    code --install-extension betterthantomorrow.calva
+    code --install-extension borkdude.clj-kondo
 }
 
 if yes_or_no "Would you like to continue?"; then
