@@ -27,11 +27,7 @@ This tool will install several components on your system, including:
 - Visual Studio Code
 - Calva
 
-Some of these you may already have installed. If that's the case, clj-setup will simply skip those tools.
-
-After installing these 4 applications, there will be a handful more optional ones that you'll have the choice of installing along with these.
-
-These extra tools are purely optional, but are recommended - particularly if you're new to Clojure.
+And a couple other helpful tools to get you going.
 "
 
 yes_or_no() {
@@ -60,29 +56,102 @@ install_debian() {
 install_arch() {
     install_x "Arch" "pacman";
     echo "Installing with pacman..."
-    # sudo apt install -y git clojure visual-studio-code
-}
-
-install_dnf() {
-    install_x "" "dnf";
-    echo "Installing with dnf..."
-    # sudo dnf install java-11-openjdk.x86_64 clojure
-}
-
-install_yum() {
-    install_x "" "yum";
-    echo "Installing with yum..."
-    # sudo yum jdk11-graalvm-bin clojure vscode
+    sudo pacman -Sy git rlwrap clojure vscode
 }
 
 install_rpm() {
-    install_x "" "rpm";
-    echo "Installing with rpm..."
-    # sudo rpm install jdk11-graalvm-bin clojure vscode
+    log "Installing vscode directly from the .rpm file..."
+    curl -L \
+        "https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64" \
+        -o vscode.rpm
+    sudo rpm -i vscode.rpm
+    rm vscode.rpm
+}
+
+install_dnf() {
+    install_x "Fedoral" "dnf";
+    echo "Installing with dnf..."
+    sudo dnf install git clojure
+    install_rpm
+}
+
+install_yum() {
+    install_x "Fedora" "yum";
+    echo "Installing with yum..."
+    sudo yum install git clojure
+    install_rpm
+}
+
+install_git() {
+    echo "Installing git..."
+}
+
+install_java() {
+    javac --version
+    if [ $? -eq 0 ]; then
+        log "JDK already installed, skipping."
+    else
+        log "We're going to use GraalVM OpenJDK because it provides some extra nice stuff..."
+        sudo mkdir /usr/lib/jvm
+        sudo curl -o ~/Downloads/graalvm.tar.gz \
+            -L https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-22.1.0/graalvm-ce-java11-linux-amd64-22.1.0.tar.gz \
+            | tar -xf -C /usr/lib/jvm/
+
+        javac --version
+        if [ $? -eq 0 ]; then
+            log "JDK installed, moving on..."
+        else
+            log "Hmm, something went wrong trying to install the JDK. Try running this script again maybe?"
+            log "Please leave a bug report on $repo"
+            exit -1
+        fi
+    fi
+}
+
+install_clojure() {
+    clojure --version
+    if [ $? -eq 0 ]; then
+        log "Clojure is already installed, skipping."
+    else
+        # Perhaps send this to $HOME/Downloads or pipe the script into sh
+        curl -O https://download.clojure.org/install/linux-install-1.11.1.1113.sh
+        chmod +x linux-install-1.11.1.1113.sh
+        sudo ./linux-install-1.11.1.1113.sh
+
+        clojure --version
+        if [ $? -eq 0 ]; then
+            log "Clojure is now installed!"
+        else
+            log "Hmm, something went wrong trying to install Clojure. Try running this script again maybe?"
+            log "Please leave a bug report on $repo"
+            exit -1;
+        fi
+    fi
+}
+
+install_vscode() {
+    code --version
+    if [ $? -eq 0 ]; then
+        log "VSCode is already installed, skipping..."
+    else
+
+        code --version
+        if [ $? -eq 0 ]; then
+            log "VSCode is installed."
+        else
+            log "Hmm, something went wrong trying to install Clojure. Try running this script again maybe?"
+            log "Please leave a bug report on $repo"
+            exit -1
+        fi
+    fi
 }
 
 install_linux() {
-    echo "Unknown linux distribution... Going to do a manual install."
+    log "Unknown linux distribution... Going to do a manual install."
+    install_git
+    install_java
+    install_clojure
+    install_vscode
 }
 
 ##################################################
@@ -110,19 +179,23 @@ install_macos() {
 ########### Run Installations ####################
 ##################################################
 
+installed() {
+    type $1 >> /dev/null
+}
+
 run_install() {
     case "$(uname -s)" in
         Darwin)
-            if type brew; then install_brew
-            elif type ports; then install_ports
+            if installed brew; then install_brew
+            elif installed ports; then install_ports
             else install_macos
             fi
             ;;
 
         Linux)
-            if type pacman; then install_arch
-            elif type apt; then install_debian
-            elif type dnf; then install_dnf
+            if installed pacman; then install_arch
+            elif installed apt; then install_debian
+            elif installed dnf; then install_dnf
             else install_linux
             fi
             ;;
@@ -134,6 +207,22 @@ run_install() {
     log "Installing vscode extensions..."
     code --install-extension betterthantomorrow.calva
     code --install-extension borkdude.clj-kondo
+
+
+    log "Installing deps-new"
+    echo "Deps-new is a Clojure tool for generating projects from templates"
+    clojure -Ttools install io.github.seancorfield/deps-new '{:git/tag "v0.4.9"}' :as new
+
+    # Done!
+    log "And looks like that's it!"
+
+    echo "\n\n$Green---  New to Clojure? ---$End"
+    echo "Check out these free resources to help you get started:"
+    echo " - [Book] https://www.braveclojure.com/clojure-for-the-brave-and-true/"
+    echo " - [Video] "
+    echo " - [Docs] https://clojure.org/api/cheatsheet"
+    echo " - [Slack] https://clojurians.net/"
+    echo " - [Discord] https://discord.gg/discljord"
 }
 
 if yes_or_no "Would you like to continue?"; then
@@ -141,3 +230,10 @@ if yes_or_no "Would you like to continue?"; then
 else
     echo "Stopping installation..."
 fi
+
+
+echo "
+After installing these 4 applications, there will be a handful more optional ones that you'll have the choice of installing along with these.
+
+These extra tools are purely optional, but are recommended - particularly if you're new to Clojure.
+"
