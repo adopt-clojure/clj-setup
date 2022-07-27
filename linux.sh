@@ -1,15 +1,5 @@
 #!/bin/sh
 
-arch="$ARCHFLAGS"
-repo="https://github.com/nixin72/clj-setup"
-
-Green=$'\e[0;32m'
-End=$'\e[m'
-
-log() {
-    echo "$Green[$(date "+%H:%M:%S")]$End $@"
-}
-
 echo "
    ________        __     _____ ______________  ______
   / ____/ /       / /    / ___// ____/_  __/ / / / __ \\
@@ -30,6 +20,30 @@ This tool will install several components on your system, including:
 And a couple other helpful tools to get you going.
 "
 
+arch="$ARCHFLAGS"
+repo="https://github.com/nixin72/clj-setup"
+
+Green=$'\e[0;32m'
+Red=$'\e[0;31m]'
+End=$'\e[m'
+
+clj_sh="https://download.clojure.org/install/linux-install-1.11.1.1113.sh"
+code_rpm="https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64"
+brew_sh="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+
+log() {
+    echo "$Green[$(date "+%H:%M:%S")]$End $@"
+}
+
+error() {
+    echo "$Red[$(date "+%H:%M:%S")]$End Error: $@"
+    echo "If you believe this is an issue with clj-setup, please leave an issue on our GitHub repository $repo."
+}
+
+installed() {
+    type "$1" > /dev/null 2>&1
+}
+
 yes_or_no() {
     while true; do
         read -p "$* [Y/n]: " yn
@@ -41,108 +55,91 @@ yes_or_no() {
     done
 }
 
+log_sucess() {
+    if installed $1; then
+        log "$2 is now installed!"
+    else
+        error "Failed to install $2"
+    fi
+}
+
 install_x() {
     log "Looks like you're using a $1 based system. We're going to try to install using $2."
+}
+
+run_script() {
+    chmod +x tmp.sh
+    sudo ./tmp.sh >> /dev/null
+    rm tmp.sh
+}
+
+install_script() {
+    curl -sSfL "$1" -o tmp.sh >> /dev/null
+    if yes_or_no "Would you like to inspect the install script?"; then
+        less tmp.sh
+        if yes_or_no "Would you like to continue installing this?"; then
+            run_script
+        else
+            return 1
+        fi
+    else
+        run_script
+    fi
+}
+
+install_rpm() {
+    curl -sSfL "$1" -o tmp.rpm >> /dev/null
+    sudo rpm -i tmp.rpm >> /dev/null
 }
 
 ##################################################
 ########### Linux ################################
 ##################################################
-install_debian() {
-    install_x "Debian" "apt"
-    sudo apt install -y git clojure visual-studio-code
-}
-
-install_arch() {
-    install_x "Arch" "pacman";
-    echo "Installing with pacman..."
-    sudo pacman -Sy git rlwrap clojure vscode
-}
-
-install_rpm() {
-    log "Installing vscode directly from the .rpm file..."
-    curl -L \
-        "https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64" \
-        -o vscode.rpm
-    sudo rpm -i vscode.rpm
-    rm vscode.rpm
-}
-
-install_dnf() {
-    install_x "Fedoral" "dnf";
-    echo "Installing with dnf..."
-    sudo dnf install git clojure
-    install_rpm
-}
-
-install_yum() {
-    install_x "Fedora" "yum";
-    echo "Installing with yum..."
-    sudo yum install git clojure
-    install_rpm
-}
 
 install_git() {
-    echo "Installing git..."
+    if installed git; then
+        log "Git already installed"...
+    else
+        log "Installing git..."
+        if installed apt; then sudo apt install git
+        elif installed yum; then sudo yum install git
+        elif installed dnf; then sudo dnf install git
+        elif installed pacman; then sudo pacman -S git
+        else error "Unknown system - don't know how to install git."
+        fi
+    fi
 }
 
 install_java() {
-    javac --version
-    if [ $? -eq 0 ]; then
-        log "JDK already installed, skipping."
+    if installed javac; then
+        log "JDK already installed..."
     else
-        log "We're going to use GraalVM OpenJDK because it provides some extra nice stuff..."
+        log "Installing GraalVM JDK..."
         sudo mkdir /usr/lib/jvm
         sudo curl -o ~/Downloads/graalvm.tar.gz \
             -L https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-22.1.0/graalvm-ce-java11-linux-amd64-22.1.0.tar.gz \
             | tar -xf -C /usr/lib/jvm/
 
-        javac --version
-        if [ $? -eq 0 ]; then
-            log "JDK installed, moving on..."
-        else
-            log "Hmm, something went wrong trying to install the JDK. Try running this script again maybe?"
-            log "Please leave a bug report on $repo"
-            exit -1
-        fi
+        log_sucess javac "JDK"
     fi
 }
 
 install_clojure() {
-    clojure --version
-    if [ $? -eq 0 ]; then
-        log "Clojure is already installed, skipping."
+    if installed clojure; then
+        log "Clojure already installed..."
     else
-        # Perhaps send this to $HOME/Downloads or pipe the script into sh
-        curl -O https://download.clojure.org/install/linux-install-1.11.1.1113.sh
-        chmod +x linux-install-1.11.1.1113.sh
-        sudo ./linux-install-1.11.1.1113.sh
-
-        clojure --version
-        if [ $? -eq 0 ]; then
-            log "Clojure is now installed!"
-        else
-            log "Hmm, something went wrong trying to install Clojure. Try running this script again maybe?"
-            log "Please leave a bug report on $repo"
-            exit -1;
-        fi
+        log "Installing Clojure..."
+        install_script "$clj_sh"
+        log_sucess clojure "Clojure"
     fi
 }
 
 install_vscode() {
-    code --version
-    if [ $? -eq 0 ]; then
-        log "VSCode is already installed, skipping..."
+    if installed code; then
+        log "Visual Studio Code already installed..."
     else
-
-        code --version
-        if [ $? -eq 0 ]; then
-            log "VSCode is installed."
-        else
-            log "Hmm, something went wrong trying to install Clojure. Try running this script again maybe?"
-            log "Please leave a bug report on $repo"
-            exit -1
-        fi
+        log "Installing Visual Studio Code"
+        log_sucess code "Visual Studio Code"
     fi
 }
 
@@ -154,9 +151,28 @@ install_linux() {
     install_vscode
 }
 
+install_debian() {
+    install_x "Debian" "apt"
+    sudo apt install -y git clojure visual-studio-code
+}
+
+install_arch() {
+    install_x "Arch" "pacman";
+    echo "Installing with pacman..."
+    sudo pacman -Sy git rlwrap clojure vscode
+}
+
+install_fedora() {
+    install_x "Fedora-like" "rpm";
+    install_clojure
+    log "Installing Visual Studio Code..."
+    install_rpm "$code_rpm"
+}
+
 ##################################################
 ########### MacOS ################################
 ##################################################
+
 install_brew() {
     install_x "MacOS" "brew"
     brew install -q git openjdk@11 clojure visual-studio-code
@@ -169,9 +185,8 @@ install_ports() {
 }
 
 install_macos() {
-    # If they don't have brew, just install brew for them...
-    # It's way easier this way.
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    echo "Installing Homebrew. This will greatly simplify installing everything else."
+    install_script "$brew_sh"
     install_brew
 }
 
@@ -179,8 +194,16 @@ install_macos() {
 ########### Run Installations ####################
 ##################################################
 
-installed() {
-    type $1 >> /dev/null
+install_extensions() {
+    log "Installing vscode extensions..."
+    code --install-extension betterthantomorrow.calva >> /dev/null
+    code --install-extension borkdude.clj-kondo >> /dev/null
+}
+
+install_clojure_tools() {
+    log "Installing deps-new"
+    clojure -Ttools install io.github.seancorfield/deps-new \
+        '{:git/tag "v0.4.9"}' :as new >> /dev/null
 }
 
 run_install() {
@@ -195,7 +218,7 @@ run_install() {
         Linux)
             if installed pacman; then install_arch
             elif installed apt; then install_debian
-            elif installed dnf; then install_dnf
+            elif installed rpm; then install_fedora
             else install_linux
             fi
             ;;
@@ -204,19 +227,12 @@ run_install() {
             log "Unrecognized OS type."
     esac
 
-    log "Installing vscode extensions..."
-    code --install-extension betterthantomorrow.calva
-    code --install-extension borkdude.clj-kondo
+    install_extensions
+    install_clojure_tools
 
-
-    log "Installing deps-new"
-    echo "Deps-new is a Clojure tool for generating projects from templates"
-    clojure -Ttools install io.github.seancorfield/deps-new '{:git/tag "v0.4.9"}' :as new
-
-    # Done!
     log "And looks like that's it!"
 
-    echo "\n\n$Green---  New to Clojure? ---$End"
+    echo -e "\n\n$Green---  New to Clojure? ---$End"
     echo "Check out these free resources to help you get started:"
     echo " - [Book] https://www.braveclojure.com/clojure-for-the-brave-and-true/"
     echo " - [Video] "
