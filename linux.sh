@@ -27,9 +27,11 @@ Green=$'\e[0;32m'
 Red=$'\e[0;31m]'
 End=$'\e[m'
 
-clj_sh="https://download.clojure.org/install/linux-install-1.11.1.1113.sh"
-code_rpm="https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64"
 brew_sh="https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+clj_sh="https://download.clojure.org/install/linux-install-1.11.1.1113.sh"
+jdk_tar="https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-22.1.0/graalvm-ce-java11-linux-amd64-22.1.0.tar.gz"
+code_rpm="https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64"
+rlwrap_rpm="https://download-ib01.fedoraproject.org/pub/fedora/linux/releases/36/Everything/x86_64/os/Packages/r/rlwrap-0.45.2-1.fc36.x86_64.rpm"
 
 log() {
     echo "$Green[$(date "+%H:%M:%S")]$End $@"
@@ -90,6 +92,7 @@ install_script() {
 install_rpm() {
     curl -sSfL "$1" -o tmp.rpm >> /dev/null
     sudo rpm -i tmp.rpm >> /dev/null
+    rm tmp.rpm
 }
 
 ##################################################
@@ -116,11 +119,27 @@ install_java() {
     else
         log "Installing GraalVM JDK..."
         sudo mkdir /usr/lib/jvm
-        sudo curl -o ~/Downloads/graalvm.tar.gz \
-            -L https://github.com/graalvm/graalvm-ce-builds/releases/download/vm-22.1.0/graalvm-ce-java11-linux-amd64-22.1.0.tar.gz \
-            | tar -xf -C /usr/lib/jvm/
+        curl -sSfL "$jdk_jar" -o graal.tar.gz
+        tar -xzf graal.tar.gz
+        mv graal
 
         log_sucess javac "JDK"
+    fi
+}
+
+install_rlwrap() {
+    if installed rlwrap; then
+        log "rlwrap already installed..."
+    else
+        log "Installing rlwrap..."
+
+        git clone https://github.com/hanslub42/rlwrap.git
+        cd rlwrap
+        ./configure
+        make
+        sudo make install
+
+        log_sucess rlwrap "rlwrap"
     fi
 }
 
@@ -147,13 +166,14 @@ install_linux() {
     log "Unknown linux distribution... Going to do a manual install."
     install_git
     install_java
+    install_rlwrap
     install_clojure
     install_vscode
 }
 
 install_debian() {
     install_x "Debian" "apt"
-    sudo apt install -y git clojure visual-studio-code
+    sudo apt install -y git rlwrap clojure visual-studio-code
 }
 
 install_arch() {
@@ -164,9 +184,11 @@ install_arch() {
 
 install_fedora() {
     install_x "Fedora-like" "rpm";
-    install_clojure
     log "Installing Visual Studio Code..."
     install_rpm "$code_rpm"
+    log "Installing rlwrap..."
+    install_rpm "$rlwrap_rpm"
+    install_clojure
 }
 
 ##################################################
@@ -223,8 +245,7 @@ run_install() {
             fi
             ;;
 
-        *)
-            log "Unrecognized OS type."
+        *) log "Unrecognized OS type." ;;
     esac
 
     install_extensions
